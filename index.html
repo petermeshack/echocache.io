@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Data Visualization</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.0/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .chart-container {
+            display: inline-block;
+            width: 45%;
+            margin: 20px;
+            text-align: center;
+        }
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        table th, table td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        table th {
+            background-color: #f2f2f2;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Environmental Data</h1>
+
+    <!-- Download Buttons -->
+    <div>
+        <button onclick="downloadPDF()">Download PDF</button>
+        <button onclick="downloadExcel()">Download Excel</button>
+    </div>
+
+    <!-- Chart Containers -->
+    <div class="chart-container">
+        <h3>Temperature Data</h3>
+        <canvas id="tempChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h3>Humidity Data</h3>
+        <canvas id="humidityChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h3>Light Data</h3>
+        <canvas id="lightChart"></canvas>
+    </div>
+
+    <!-- Data Table -->
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Date [DD/MM/YY]</th>
+                <th>Time [00:00:00]</th>
+                <th>Temperature (°C)</th>
+                <th>Humidity (SI unit)</th>
+                <th>Light (SI unit)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here dynamically -->
+        </tbody>
+    </table>
+
+    <script type="module">
+        // Firebase Config (Replace with your Firebase credentials)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4RJ0Gx-_-NieBFmBRUiFE5X1-zxdYiVY",
+            authDomain: "echocache-d2cd5.firebaseapp.com",
+            projectId: "echocache-d2cd5",
+            storageBucket: "echocache-d2cd5.firebasestorage.app",
+            messagingSenderId: "434305599795",
+            appId: "1:434305599795:web:76fd4288f3f8165d011646",
+            measurementId: "G-J74JVFK2CK"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Data storage variables
+        let labels = [];
+        let tempData = [];
+        let humidityData = [];
+        let lightData = [];
+
+        // Fetch data from Firestore
+        async function fetchData() {
+            const snapshot = await getDocs(collection(db, "echocache_db"));
+
+            snapshot.forEach(doc => {
+                let data = doc.data();
+                tempData.push(data.temperature);
+                humidityData.push(data.humidity);
+                lightData.push(data.light);
+                labels.push(data.date_time);
+            });
+
+            updateTable(labels, tempData, humidityData, lightData);
+            updateCharts(labels, tempData, humidityData, lightData);
+        }
+
+        // Update the charts
+        function updateCharts(labels, tempData, humidityData, lightData) {
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+            const lightCtx = document.getElementById('lightChart').getContext('2d');
+
+            new Chart(tempCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature',
+                        data: tempData,
+                        backgroundColor: ['#ff9999'],
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                    },
+                },
+            });
+
+            new Chart(humidityCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Humidity',
+                        data: humidityData,
+                        backgroundColor: ['#66b3ff'],
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                    },
+                },
+            });
+
+            new Chart(lightCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Light',
+                        data: lightData,
+                        backgroundColor: ['#99ff99'],
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                    },
+                },
+            });
+        }
+
+        // Update the table with data
+        function updateTable(labels, tempData, humidityData, lightData) {
+            const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+
+            for (let i = 0; i < labels.length; i++) {
+                const row = tableBody.insertRow();
+                const cell1 = row.insertCell(0);
+                const cell2 = row.insertCell(1);
+                const cell3 = row.insertCell(2);
+                const cell4 = row.insertCell(3);
+                const cell5 = row.insertCell(4);
+
+                cell1.textContent = labels[i];
+                cell2.textContent = "12:00:00";  // Example, adjust to your time format
+                cell3.textContent = tempData[i];
+                cell4.textContent = humidityData[i];
+                cell5.textContent = lightData[i];
+            }
+        }
+
+        // Fetch data when the page loads
+        fetchData();
+    </script>
+
+    <!-- Download Functions in Global Scope -->
+    <script>
+        // Download as PDF
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.text("Environmental Data Report", 20, 20);
+            doc.addPage();
+            doc.text("Temperature Data", 20, 30);
+            doc.addImage(document.getElementById('tempChart').toDataURL(), 'PNG', 20, 40, 150, 150);
+            doc.addPage();
+            doc.text("Humidity Data", 20, 30);
+            doc.addImage(document.getElementById('humidityChart').toDataURL(), 'PNG', 20, 40, 150, 150);
+            doc.addPage();
+            doc.text("Light Data", 20, 30);
+            doc.addImage(document.getElementById('lightChart').toDataURL(), 'PNG', 20, 40, 150, 150);
+
+            doc.save("Environmental_Data_Report.pdf");
+        }
+
+        // Download as Excel
+        function downloadExcel() {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.table_to_sheet(document.getElementById('dataTable'));
+            XLSX.utils.book_append_sheet(wb, ws, 'Environmental Data');
+            XLSX.writeFile(wb, 'Environmental_Data_Report.xlsx');
+        }
+    </script>
+
+</body>
+</html>
